@@ -1,9 +1,65 @@
-# Functional (in theory) High Frequency Trading (HFT) Simulator
+# HFT Simulator
 
-### 1. [X] Limit Order Book (price-time priority, matching, and cancels)
-### 2. [] Trade records instead of printing to a file
-### 3. [] Modify orders and market orders
-### 4. [] Replay driver against actual snapshots
-### 5. [] Latency and queue-position fill model
-### 6. [] Market-marking strategy + experimentation
-### 7. [] Findings
+> **Status: work in progress.** Currently a limit order book and matching
+> engine in Java. The simulator components are on the roadmap below.
+
+A Java project building toward a simulator for testing market-making
+strategies under realistic high-frequency conditions (latency, queue position).
+It models those conditions; it is not a trading system itself.
+
+## What works today
+
+- Price-time priority limit order book (two sorted maps of price → FIFO queue)
+- Matching: incoming orders fill against the best opposite prices, and trades
+  execute at the resting order's price
+- Partial fills that keep their place in the queue
+- Order cancels in O(1) lookup via an order-id index
+- Best bid / best ask queries
+
+## How it works
+
+```
+asks:  1002 -> [D: 500]
+       1001 -> [A: 100] -> [B: 150]     <- best ask
+bids:   999 -> [E: 400]                 <- best bid
+```
+
+- `Order`: id, side, price (integer ticks), quantity, timestamp
+- `PriceLevel`: FIFO queue of orders at one price plus a running share total
+- `OrderBook`: a bids map (high to low), an asks map (low to high), and a
+  `HashMap` index from order id to order for cancels
+
+Example: with asks of 300 @ 1001 and 500 @ 1002, a buy of 400 @ 1002 trades
+300 @ 1001, then 100 @ 1002, leaving 400 resting at 1002.
+
+## Running it
+
+1. Pull the code
+2. In Main.java, input all the orders as:
+    Order orderName = new Order(<orderID>, <price>, <quantity>, Order.OrderType.<ASK or BID>, <timestamp>)
+3. Add it to the Order Book as:
+    clob.addOrder(orderName);
+4. A sample of some orders are already in the class for you to run.
+5. Run "java Main.java"
+
+## Roadmap
+
+- [x] Limit order book (price-time priority, matching, cancels)
+- [ ] Trade records instead of printing
+- [ ] Modify orders and market orders
+- [ ] Replay driver, validated against real order book snapshots
+- [ ] Latency and queue-position fill model
+- [ ] Market-making strategy and a latency experiment
+- [ ] Write-up of findings, including where the simulator is optimistic
+
+## Design notes
+
+- Prices are stored as integer ticks, not doubles, to avoid floating-point
+  comparison bugs.
+- Cancels remove from a level's queue in O(n) in that level's size. That's
+  fine for now, and a doubly linked list would make it O(1).
+
+## Known limitations
+
+- Orders are printed rather than returned as trade objects
+- No market orders, modifies, or latency modeling yet
