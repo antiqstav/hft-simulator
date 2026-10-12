@@ -36,7 +36,7 @@ Example: with asks of 300 @ 1001 and 500 @ 1002, a buy of 400 @ 1002 trades
 
 1. Pull the code
 2. In Main.java, input all the orders as:
-    Order orderName = new Order(<orderID>, <price>, <quantity>, Order.OrderType.<ASK or BID>, <timestamp>)
+    Order orderName = new Order(orderID, price, quantity, Order.OrderType.ASK or BID, timestamp)
 3. Add it to the Order Book as:
     clob.addOrder(orderName);
 4. A sample of some orders are already in the class for you to run.
