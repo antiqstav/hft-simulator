@@ -66,7 +66,8 @@ public class PriceLevel {
         return price;
     }
 
+    @Override 
     public String toString() {
-        return "" +totalQuantity;
+        return "" + totalQuantity;
     }
 }

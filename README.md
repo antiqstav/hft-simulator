@@ -10,11 +10,10 @@ It models those conditions; it is not a trading system itself.
 ## What works today
 
 - Price-time priority limit order book (two sorted maps of price → FIFO queue)
-- Matching: incoming orders fill against the best opposite prices, and trades
-  execute at the resting order's price
-- Partial fills that keep their place in the queue
+- Bids/asks matched optimized with PriorityQueue lookups
 - Order cancels in O(1) lookup via an order-id index
 - Best bid / best ask queries
+- Differentiation of market and limit order management
 
 ## How it works
 
@@ -28,6 +27,7 @@ bids:   999 -> [E: 400]                 <- best bid
 - `PriceLevel`: FIFO queue of orders at one price plus a running share total
 - `OrderBook`: a bids map (high to low), an asks map (low to high), and a
   `HashMap` index from order id to order for cancels
+- `Trade`: trade id, ask order id, bid order id, price, quantity traded, timestamp
 
 Example: with asks of 300 @ 1001 and 500 @ 1002, a buy of 400 @ 1002 trades
 300 @ 1001, then 100 @ 1002, leaving 400 resting at 1002.
@@ -45,12 +45,12 @@ Example: with asks of 300 @ 1001 and 500 @ 1002, a buy of 400 @ 1002 trades
 ## Roadmap
 
 - [x] Limit order book (price-time priority, matching, cancels)
-- [ ] Trade records instead of printing
-- [ ] Modify orders and market orders
+- [X] Trade records instead of printing
+- [X] Modify orders and market orders
 - [ ] Replay driver, validated against real order book snapshots
 - [ ] Latency and queue-position fill model
 - [ ] Market-making strategy and a latency experiment
-- [ ] Write-up of findings, including where the simulator is optimistic
+- [ ] Report of findings
 
 ## Design notes
 

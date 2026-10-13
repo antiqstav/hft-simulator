@@ -9,22 +9,36 @@ public class Order {
     // not changed after initialization of order
     final private long orderID;
     final private long price;
-    final private OrderType type;
+    final private Side type;
+    final private OrderType orderType;
     final private long timestamp;
 
     private int quantity;
 
-    public enum OrderType {
+    public enum Side {
         BID,
         ASK
     }
+    public enum OrderType {
+        LIMIT,
+        MARKET
+    }
 
-    public Order(long orderID, long price, int quantity, OrderType type, long timestamp) {
+    public Order(long orderID, long price, int quantity, Side type, OrderType orderType, long timestamp) {
         this.orderID = orderID;
-        this.price = price;
         this.quantity = quantity;
         this.type = type;
+        this.orderType = orderType;
         this.timestamp = timestamp;
+        if (orderType == OrderType.LIMIT) {
+            this.price = price;
+        } else {
+            if (type == Side.BID) {
+                this.price = Long.MAX_VALUE;
+            } else {
+                this.price = 0;
+            }
+        }
     }
 
     // accessors
@@ -34,7 +48,9 @@ public class Order {
 
     public int getQuantity() { return quantity; }
 
-    public OrderType getType() { return type; }
+    public Side getType() { return type; }
+
+    public OrderType getOrderType() { return orderType; }
 
     public long getTimestamp() { return timestamp; }
 
