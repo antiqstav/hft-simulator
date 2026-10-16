@@ -6,6 +6,7 @@
 A Java project building toward a simulator for testing market-making
 strategies under realistic high-frequency conditions (latency, queue position).
 It models those conditions; it is not a trading system itself.
+Why Java? Java is known to be more useful for developer productivity than high-speed calculations and optimization. I wanted to see if I could recreate the speed of a program written in C++ in Java by optimizing as much as possible.
 
 ## What works today
 
@@ -56,10 +57,7 @@ Example: with asks of 300 @ 1001 and 500 @ 1002, a buy of 400 @ 1002 trades
 
 - Prices are stored as integer ticks, not doubles, to avoid floating-point
   comparison bugs.
-- Cancels remove from a level's queue in O(n) in that level's size. That's
-  fine for now, and a doubly linked list would make it O(1).
 
 ## Known limitations
 
-- Orders are printed rather than returned as trade objects
-- No market orders, modifies, or latency modeling yet
+- No latency modeling yet
