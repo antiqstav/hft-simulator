@@ -9,7 +9,7 @@ public class Order {
     // not changed after initialization of order
     final private long orderID;
     final private long price;
-    final private Side type;
+    final private Side side;
     final private OrderType orderType;
     final private long timestamp;
 
@@ -24,20 +24,20 @@ public class Order {
         MARKET
     }
 
-    public Order(long orderID, long price, int quantity, Side type, OrderType orderType, long timestamp) {
+    public Order(long orderID, long price, int quantity, Side side, OrderType orderType, long timestamp) {
         this.orderID = orderID;
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity is below zero at " + quantity);
         }
         this.quantity = quantity;
-        this.type = type;
+        this.side = side;
         this.orderType = orderType;
         this.timestamp = timestamp;
         if (orderType == OrderType.LIMIT) {
             this.price = price;
         }
         else {
-            if (type == Side.BID) {
+            if (side == Side.BID) {
                 this.price = Long.MAX_VALUE;
             }
             else {
@@ -53,7 +53,7 @@ public class Order {
 
     public int getQuantity() { return quantity; }
 
-    public Side getSide() { return type; }
+    public Side getSide() { return side; }
 
     public OrderType getOrderType() { return orderType; }
 

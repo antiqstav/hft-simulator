@@ -16,6 +16,12 @@ public class OrderBook {
     private final List<Trade> tradesCompleted = new ArrayList<>();
     private long nextTradeID = 0;
 
+    public enum Status {
+        APPLIED,
+        FALLBACK,
+        UNRESOLVED
+    }
+
     public OrderBook() {
         // sorted lowest price as the first
         asks = new TreeMap<>();
@@ -24,6 +30,33 @@ public class OrderBook {
         orderIndex = new HashMap<>();
     }
 
+    // starting orderbook with first message
+    public boolean seed(String row, int levels) {
+        String[] f = row.split(",");
+        int id = -1;
+
+        if (levels * 4 != f.length) {
+            throw new IllegalArgumentException("Expected " + levels * 4 + " columns, but received " + f.length + " columns");
+        }
+
+        for (int i = 0; i < f.length; i+=4) {
+            long askPrice = Long.parseLong(f[i].trim());
+            int askSize = Integer.parseInt(f[i + 1].trim());
+            long bidPrice = Long.parseLong(f[i + 2].trim());
+            int bidSize = Integer.parseInt(f[i + 3].trim());
+
+            if (askSize > 0) {
+                applyRestOrder(new Order(id--, askPrice, askSize, Order.Side.ASK, Order.OrderType.LIMIT, 0));
+            }
+            if (bidSize > 0) {
+                applyRestOrder(new Order(id--, bidPrice, bidSize, Order.Side.BID, Order.OrderType.LIMIT, 0));
+            }
+        }
+
+        return true;
+    }
+
+    // order handling
     public void addOrder (Order o) {
         Order.Side type = o.getSide();
         Order.OrderType orderType = o.getOrderType();
@@ -71,7 +104,6 @@ public class OrderBook {
             }
         }
     }
-
     public boolean cancelOrder(long orderID) {
         Order o = orderIndex.get(orderID);
         if (o == null) {
@@ -89,7 +121,6 @@ public class OrderBook {
         orderIndex.remove(orderID);
         return true;
     }
-
     public boolean modifyOrder(long orderID, long newPrice, int newQuantity, long timestamp) {
         Order o = orderIndex.get(orderID);
         if (o == null) {
@@ -115,26 +146,93 @@ public class OrderBook {
         return true;
     }
 
+    // replay methods
+    // 1 (NEW)
+    public Status applyRestOrder(Order o) {
+        if (orderIndex.containsKey(o.getOrderID())) {
+            throw new IllegalStateException("Duplicated order ID of " + o.getOrderID());
+        }
+        TreeMap<Long, PriceLevel> book = (o.getSide() == Order.Side.BID) ? bids : asks;
+        book.computeIfAbsent(o.getPrice(), k -> new PriceLevel()).addOrder(o);
+        orderIndex.put(o.getOrderID(), o);
+        return Status.APPLIED;
+    }
+    // 2 (PARTIAL_CANCEL) and 4 (EXECUTE_VISIBLE)
+    public Status applyReduce(long orderID, int quantity, Order.Side side, long price) {
+        if (quantity <= 0) throw new IllegalArgumentException("Reduce amount must be positive " + quantity);
+        if (orderIndex.containsKey(orderID)) {
+            Order o = orderIndex.get(orderID);
+            if (o.getSide() != side) throw new IllegalStateException("Message does not have correct side: " + o.getSide() + " is not " + side);
+            if (o.getPrice() != price) throw new IllegalStateException("Price does not match: " + o.getPrice() + " is not " + price);
+            
+            if (o.getQuantity() > quantity) {
+                TreeMap<Long, PriceLevel> book = (o.getSide() == Order.Side.BID) ? bids : asks;
+                book.get(o.getPrice()).reduce(o, o.getQuantity() - quantity);
+                return Status.APPLIED;
+            }
+            else if (o.getQuantity() == quantity) {
+                cancelOrder(orderID);
+                return Status.APPLIED;
+            }
+            else {
+                throw new IllegalStateException("Order " + orderID + " has " + o.getQuantity() + " but message removes " + quantity);
+            }
+        }
+        else {
+            return fallback(quantity, side, price);
+        }
+    }
+    // 3 (DELETE)
+    public Status applyDelete(long orderID, int size, Order.Side side, long price) {
+        if (orderIndex.get(orderID) == null) {
+            return fallback(size, side, price);
+        }
+        Order o = orderIndex.get(orderID);
+        if (o.getSide() != side) throw new IllegalStateException("Message does not have correct side: " + o.getSide() + " is not " + side);
+        if (o.getPrice() != price) throw new IllegalStateException("Price does not match: " + o.getPrice() + " is not " + price);
+        cancelOrder(orderID);
+        return Status.APPLIED;
+    }
+    // fallback for missing ids
+    public Status fallback(int quantity, Order.Side side, long price) {
+        TreeMap<Long, PriceLevel> book = (side == Order.Side.BID) ? bids : asks;
+        PriceLevel pl = book.get(price);
+        if (pl == null || pl.getTotalQuantity() < quantity)
+            return Status.UNRESOLVED;
+
+        int remaining = quantity;
+        while (remaining > 0) {
+            Order front = pl.peekOrder();
+            int take = Math.min(remaining, front.getQuantity());
+            pl.fill(take);
+            if (front.getQuantity() == 0) orderIndex.remove(front.getOrderID());
+            remaining -= take;
+        }
+        if (pl.isEmpty()) book.remove(price);
+        return Status.FALLBACK;
+    }
+
+    // unit test methods to check orderbook follows rules
     public void checkInvariants() {
         int ordersInLevels = 0;
         for (var side : List.of(bids, asks)) {
             for (var entry : side.entrySet()) {
                 PriceLevel pl = entry.getValue();
-                if (pl.isEmpty()) throw new IllegalStateException("empty level at " + entry.getKey());
+                if (pl.isEmpty()) throw new IllegalStateException("Empty level at " + entry.getKey());
                 int sum = 0;
-                for (Order o : pl.getOrders()) {          // needs a read-only accessor on PriceLevel
-                    if (o.getQuantity() <= 0) throw new IllegalStateException("bad quantity on order " + o.getOrderID());
+                for (Order o : pl.getOrders()) {
+                    if (o.getQuantity() <= 0) throw new IllegalStateException("Bad quantity on order " + o.getOrderID());
                     sum += o.getQuantity();
                     ordersInLevels++;
                 }
                 if (sum != pl.getTotalQuantity())
-                    throw new IllegalStateException("total drift at " + entry.getKey());
+                    throw new IllegalStateException("Total drift at " + entry.getKey());
             }
         }
         if (ordersInLevels != orderIndex.size())
-            throw new IllegalStateException("index has " + orderIndex.size() + " orders, levels have " + ordersInLevels);
+            throw new IllegalStateException("Index has " + orderIndex.size() + " orders, levels have " + ordersInLevels);
         if (!bids.isEmpty() && !asks.isEmpty() && bids.firstKey() >= asks.firstKey())
-            throw new IllegalStateException("crossed book");
+            throw new IllegalStateException("Crossed book");
     }
 
     // accessors
@@ -156,6 +254,17 @@ public class OrderBook {
             throw new NoSuchElementException("No asks in the current price level");
         }
         return asks.firstKey();
+    }
+    public long[] levelAt(Order.Side side, int k) {
+        TreeMap<Long, PriceLevel> book = (side == Order.Side.BID) ? bids : asks;
+        int currentPriceLevel = 1;
+        for (var entry : book.entrySet()) {
+            if (currentPriceLevel == k) {
+                return new long[]{entry.getKey(), entry.getValue().getTotalQuantity()};
+            }
+            currentPriceLevel++;
+        }
+        return null;
     }
 
     @Override

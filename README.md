@@ -54,12 +54,11 @@ Example: with asks of 300 @ 1001 and 500 @ 1002, a buy of 400 @ 1002 trades
 
 ## Design notes
 
-- Prices are stored as integer ticks, not doubles, to avoid floating-point
-  comparison bugs.
-- Cancels remove from a level's queue in O(n) in that level's size. That's
-  fine for now, and a doubly linked list would make it O(1).
+- Prices are stored as integer ticks, not doubles, to avoid floating-point comparison bugs.
+- Cancels remove from a level's queue in O(n) in that level's size.
+- Orderbook is built with the first orderbook line from the orderbook file.
+- Any messages from the file without an id falls back to removing the amount that is claimed in the message line.
 
 ## Known limitations
 
-- Orders are printed rather than returned as trade objects
-- No market orders, modifies, or latency modeling yet
+- No latency modeling yet
