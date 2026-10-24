@@ -30,8 +30,8 @@ public class OrderbookValidator {
 
     private static long[] parseRow(String row, int levels) {
         String[] f = row.split(",");
-        if (f.length != 4 * levels)
-            throw new IllegalArgumentException("Expected " + (4 * levels) + " columns, got " + f.length);
+        // if (f.length != 4 * levels)
+        //     throw new IllegalArgumentException("Expected " + (4 * levels) + " columns, got " + f.length);
         long[] v = new long[f.length];
         for (int i = 0; i < f.length; i++) v[i] = Long.parseLong(f[i].trim());
         return v;

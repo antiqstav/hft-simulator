@@ -4,7 +4,8 @@ import java.io.IOException;
 
 public class Main {
 
-    static final int LEVELS = 10;
+    static final int FILE_LEVELS = 50;
+    static final int CHECK_LEVELS = 10;
     static final int INVARIANT_LOOP = 1000;
 
     public static void main(String[] args) throws IOException {
@@ -36,7 +37,7 @@ public class Main {
                 throw new IllegalStateException("A file is empty");
             }
 
-            book.seed(firstRow, LEVELS);
+            book.seed(firstRow, FILE_LEVELS);
             messageCount = 1;
 
             String msgLine;
@@ -66,7 +67,7 @@ public class Main {
                 }
 
                 messageCount++;
-                String problem = OrderbookValidator.firstMismatch(book, obLine, LEVELS);
+                String problem = OrderbookValidator.firstMismatch(book, obLine, CHECK_LEVELS);
 
                 if (problem != null) {
                     mismatch = problem;
